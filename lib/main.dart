@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-// Import your game logic package!
-import 'package:game_logic/game_logic.dart';
+import 'package:game_logic/game_logic.dart' as game;
+import 'widgets/card_widget.dart';
+import 'widgets/player_hand_widget.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,12 +32,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // Create an instance of your game controller
-  final GameController _gameController = GameController();
-  
+  final game.GameController _gameController = game.GameController();
+
   void _startNewGame() {
     setState(() {
-      // Calling setState will make sure the UI rebuilds after the state changes
       _gameController.startNewGame();
     });
   }
@@ -45,38 +44,44 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     // Get the current game state from the controller
     final gameState = _gameController.state;
+    final player = (gameState != null) ? gameState.players[0] : null;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            // Show a message if the game hasn't started yet
-            if (gameState == null)
-              const Text('Press the button to start a new game!'),
-
-            // If the game has started, display some info
-            if (gameState != null) ...[
-              Text(
-                'Top of Discard Pile:',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              Text(
-                '${gameState.discardPile.last}',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Player 1 has ${gameState.players[0].hand.length} cards.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: <Widget>[
+          if (gameState == null)
+            const Center(
+              child: Text('Press the button to start a new game!'),
+            ),
+          if (gameState != null && player != null) ...[
+            Text(
+              'Discard Pile:',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Center(
+              // 4. This works because gameState.discardPile.last is a 'game.Card'
+              child: CardWidget(card: gameState.discardPile.last),
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 24),
+            Text(
+              'Your Hand (Player 1):',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            // 5. This works because player.hand is a 'List<game.Card>'
+            PlayerHandWidget(hand: player.hand),
           ],
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _startNewGame,
