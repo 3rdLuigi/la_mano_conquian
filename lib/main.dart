@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:game_logic/game_logic.dart' as game;
 import 'widgets/card_widget.dart';
+import 'widgets/deck_widget.dart';
 import 'widgets/player_hand_widget.dart';
 
 void main() {
@@ -34,17 +35,47 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final game.GameController _gameController = game.GameController();
 
+  game.Card? _selectedCard;
+
   void _startNewGame() {
     setState(() {
       _gameController.startNewGame();
     });
   }
 
-  @override
+  void _drawFromDeck() {
+    setState(() {
+      _gameController.drawFromDeck();
+    });
+  }
+
+  void _onCardTapped(game.Card card) {
+    setState(() {
+      // If tapping the same card, deselect it. Otherwise, select the new card.
+      if (_selectedCard == card) {
+        _selectedCard = null;
+      } else {
+        _selectedCard = card;
+      }
+    });
+  }
+
+  void _discardSelectedCard() {
+    if (_selectedCard == null) return;
+
+    setState(() {
+      _gameController.discardCard(_selectedCard!);
+      _selectedCard = null; // Clear selection after discarding
+    });
+  }
+
+@override
   Widget build(BuildContext context) {
-    // Get the current game state from the controller
     final gameState = _gameController.state;
-    final player = (gameState != null) ? gameState.players[0] : null;
+    // Get the current player based off of the index
+    final player = (gameState != null)
+        ? gameState.players[gameState.currentPlayerIndex]
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -58,28 +89,64 @@ class _MyHomePageState extends State<MyHomePage> {
             const Center(
               child: Text('Press the button to start a new game!'),
             ),
+
           if (gameState != null && player != null) ...[
-            Text(
-              'Discard Pile:',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Center(
-              // 4. This works because gameState.discardPile.last is a 'game.Card'
-              child: CardWidget(card: gameState.discardPile.last),
+            // === Deck and Discard Pile ===
+            // We use a Row to show them side-by-side
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // --- The Deck ---
+                Column(
+                  children: [
+                    Text(
+                      'Deck:',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    DeckWidget(
+                      cardCount: gameState.deck.cards.length,
+                      onTap: _drawFromDeck, // Call our new method!
+                    ),
+                  ],
+                ),
+                // --- The Discard Pile ---
+                Column(
+                  children: [
+                    Text(
+                      'Discard Pile:',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    CardWidget(card: gameState.discardPile.last),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 24),
+
+            // === Player's Hand ===
             Text(
-              'Your Hand (Player 1):',
+              'Your Hand (Player ${gameState.currentPlayerIndex + 1}):',
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
+            if (_selectedCard != null)
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: _discardSelectedCard,
+                  icon: const Icon(Icons.vertical_align_bottom),
+                  label: Text('Discard $_selectedCard'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[400],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
-            // 5. This works because player.hand is a 'List<game.Card>'
-            PlayerHandWidget(hand: player.hand),
+            PlayerHandWidget(hand: player.hand, selectedCard: _selectedCard, onCardTapped: _onCardTapped),
           ],
         ],
       ),
