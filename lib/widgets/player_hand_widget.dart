@@ -5,13 +5,13 @@ import 'card_widget.dart';
 
 class PlayerHandWidget extends StatelessWidget {
   final List<game.Card> hand;
-  final game.Card? selectedCard;
+  final List<game.Card> selectedCards;
   final Function(game.Card card)? onCardTapped;
 
   const PlayerHandWidget({
     super.key, 
     required this.hand,
-    this.selectedCard,
+    this.selectedCards = const [],
     this.onCardTapped,
     });
 
@@ -22,7 +22,7 @@ class PlayerHandWidget extends StatelessWidget {
       children: hand
           .map((card) => CardWidget(
             card: card,
-            isSelected: card == selectedCard,
+            isSelected: selectedCards.contains(card),
             onTap: () => onCardTapped?.call(card),
             ))
           .toList(),

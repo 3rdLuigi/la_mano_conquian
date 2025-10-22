@@ -3,6 +3,8 @@ import 'models/card.dart';
 import 'models/deck.dart';
 import 'models/game_state.dart';
 import 'models/player.dart';
+import 'models/meld.dart';
+import 'meld_validator.dart';
 
 class GameController {
   GameState? _gameState;
@@ -110,5 +112,45 @@ class GameController {
       currentPlayerIndex: nextPlayerIndex, //Update the current player
       status: currentState.status,
     );
+  }
+  bool meldCards(List<Card> cardsToMeld) {
+    if (_gameState == null) return false;
+
+    //Use the validator you already built!
+    if (!MeldValidator.isValidMeld(cardsToMeld)) {
+      return false; // Not a valid
+    }
+
+    final currentState = _gameState!;
+    final player = currentState.players[currentState.currentPlayerIndex];
+    
+    // Determine the meld type
+    // A simple (but not 100% perfect) check:
+    // If all ranks are the same, it's a set. Otherwise, it's a sequence.
+    final type =
+        cardsToMeld.every((card) => card.rank == cardsToMeld[0].rank)
+            ? MeldType.set
+            : MeldType.sequence;
+
+    final newMeld = Meld(cards: List<Card>.from(cardsToMeld), type: type);
+    
+    // Move cards from hand to melds
+    for (var card in newMeld.cards) {
+      player.hand.remove(card);
+    }
+    player.melds.add(newMeld);
+    
+    print("Player ${player.id} melded: $newMeld");
+
+    //Create new game state
+    _gameState = GameState(
+      players: currentState.players,
+      deck: currentState.deck,
+      discardPile: currentState.discardPile,
+      currentPlayerIndex: currentState.currentPlayerIndex,
+      status: currentState.status,
+    );
+    
+    return true;
   }
 }

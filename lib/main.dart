@@ -3,6 +3,7 @@ import 'package:game_logic/game_logic.dart' as game;
 import 'widgets/card_widget.dart';
 import 'widgets/deck_widget.dart';
 import 'widgets/player_hand_widget.dart';
+import 'widgets/player_melds_widget.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,11 +36,12 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final game.GameController _gameController = game.GameController();
 
-  game.Card? _selectedCard;
+  final List<game.Card> _selectedCards = [];
 
   void _startNewGame() {
     setState(() {
       _gameController.startNewGame();
+      _selectedCards.clear();
     });
   }
 
@@ -52,20 +54,37 @@ class _MyHomePageState extends State<MyHomePage> {
   void _onCardTapped(game.Card card) {
     setState(() {
       // If tapping the same card, deselect it. Otherwise, select the new card.
-      if (_selectedCard == card) {
-        _selectedCard = null;
+      if (_selectedCards.contains(card)) {
+        _selectedCards.remove(card);
       } else {
-        _selectedCard = card;
+        _selectedCards.add(card);
       }
     });
   }
 
   void _discardSelectedCard() {
-    if (_selectedCard == null) return;
+    if (_selectedCards.length != 1) return;
 
     setState(() {
-      _gameController.discardCard(_selectedCard!);
-      _selectedCard = null; // Clear selection after discarding
+      _gameController.discardCard(_selectedCards.first);
+      _selectedCards.clear(); // Clear selection after discarding
+    });
+  }
+
+  void _meldSelectedCards() {
+    if (_selectedCards.isEmpty) return;
+
+    setState(() {
+      // We will add the logic to _gameController next
+      // For now, it just prints and clears
+      bool success = _gameController.meldCards(_selectedCards);
+      
+      if (success) {
+        _selectedCards.clear();
+      } else {
+        // You could show an error snackbar here
+        print("Meld failed: Not a valid meld.");
+      }
     });
   }
 
@@ -73,9 +92,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     final gameState = _gameController.state;
     // Get the current player based off of the index
-    final player = (gameState != null)
-        ? gameState.players[gameState.currentPlayerIndex]
-        : null;
+    final player1 = (gameState != null) ? gameState.players[0] : null;
+    final player2 = (gameState != null) ? gameState.players[1] : null;
+
+    final currentPlayerHand = (gameState != null)
+        ? gameState.players[gameState.currentPlayerIndex].hand
+        : <game.Card>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -90,7 +112,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Text('Press the button to start a new game!'),
             ),
 
-          if (gameState != null && player != null) ...[
+          if (gameState != null && player1 != null && player2 != null) ...[
             // === Deck and Discard Pile ===
             // We use a Row to show them side-by-side
             Row(
@@ -126,27 +148,68 @@ class _MyHomePageState extends State<MyHomePage> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 24),
+            // === Player's Melds ===
+            Text(
+              "Player 1's Melds:",
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            PlayerMeldsWidget(melds: player1.melds),
+            const SizedBox(height: 16),
+            Text(
+              "Player 2's Melds:",
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            PlayerMeldsWidget(melds: player2.melds),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
 
             // === Player's Hand ===
             Text(
               'Your Hand (Player ${gameState.currentPlayerIndex + 1}):',
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
-            ),
-            if (_selectedCard != null)
-              Center(
-                child: ElevatedButton.icon(
-                  onPressed: _discardSelectedCard,
-                  icon: const Icon(Icons.vertical_align_bottom),
-                  label: Text('Discard $_selectedCard'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[400],
-                    foregroundColor: Colors.white,
+            ),const SizedBox(height: 8),
+
+            // Show Meld/Discard buttons in a Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // MELD BUTTON
+                if (_selectedCards.length >= 3)
+                  ElevatedButton.icon(
+                    onPressed: _meldSelectedCards,
+                    icon: const Icon(Icons.style),
+                    label: const Text('Meld'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[400],
+                      foregroundColor: Colors.white,
+                    ),
                   ),
-                ),
-              ),
+                
+                // DISCARD BUTTON
+                if (_selectedCards.length == 1)
+                  ElevatedButton.icon(
+                    onPressed: _discardSelectedCard,
+                    icon: const Icon(Icons.vertical_align_bottom),
+                    label: Text('Discard ${_selectedCards.first}'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[400],
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
-            PlayerHandWidget(hand: player.hand, selectedCard: _selectedCard, onCardTapped: _onCardTapped),
+
+            // === PlayerHandWidget ===
+            PlayerHandWidget(
+              hand: currentPlayerHand,
+              selectedCards: _selectedCards, // Pass the list
+              onCardTapped: _onCardTapped,
+            ),
           ],
         ],
       ),
