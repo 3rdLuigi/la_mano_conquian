@@ -153,4 +153,60 @@ class GameController {
     
     return true;
   }
+
+  bool drawFromDiscardAndMeld(List<Card> selectedHandCards) {
+    if (_gameState == null) return false;
+    if (selectedHandCards.length < 2) return false; // Must use 2+ hand cards
+
+    final currentState = _gameState!;
+    final player = currentState.players[currentState.currentPlayerIndex];
+    final discardPile = currentState.discardPile;
+
+    if (discardPile.isEmpty) return false; // Can't draw from empty pile
+
+    //Get the card to draw
+    final cardToDraw = discardPile.last;
+
+    //Create the potential meld
+    final potentialMeldCards = List<Card>.from(selectedHandCards);
+    potentialMeldCards.add(cardToDraw);
+
+    //Use your validator to check if it's a valid meld
+    if (!MeldValidator.isValidMeld(potentialMeldCards)) {
+      print("Invalid meld with discard card.");
+      return false; // Not a valid meld
+    }
+
+    //If Valid, actually move the cards.
+    final card = discardPile.removeLast(); // Take card from discard
+    
+    //Create the new meld (using the same logic as meldCards)
+    final type =
+        potentialMeldCards.every((c) => c.rank == potentialMeldCards[0].rank)
+            ? MeldType.set
+            : MeldType.sequence;
+    
+    final newMeld = Meld(
+      cards: potentialMeldCards, // This is a new list, so it's safe
+      type: type,
+    );
+
+    //Move cards from hand to melds
+    for (var card in selectedHandCards) {
+      player.hand.remove(card);
+    }
+    player.melds.add(newMeld);
+
+    print("Player ${player.id} melded from discard: $newMeld");
+
+    _gameState = GameState(
+      players: currentState.players,
+      deck: currentState.deck,
+      discardPile: discardPile,
+      currentPlayerIndex: currentState.currentPlayerIndex,
+      status: currentState.status,
+    );
+
+    return true;
+  }
 }

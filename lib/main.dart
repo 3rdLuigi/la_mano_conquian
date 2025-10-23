@@ -88,6 +88,25 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _drawFromDiscard() {
+    // Must have at least 2 cards selected to try this
+    if (_selectedCards.length < 2) {
+      print("You must select at least 2 hand cards to meld with discard.");
+      return;
+    }
+
+    setState(() {
+      bool success = _gameController.drawFromDiscardAndMeld(_selectedCards);
+      
+      if (success) {
+        _selectedCards.clear();
+      } else {
+        print("Meld failed: Not a valid meld with the discard card.");
+        // You could show an error snackbar here
+      }
+    });
+  }
+
 @override
   Widget build(BuildContext context) {
     final gameState = _gameController.state;
@@ -113,8 +132,8 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
 
           if (gameState != null && player1 != null && player2 != null) ...[
-            // === Deck and Discard Pile ===
-            // We use a Row to show them side-by-side
+            // --- Deck and Discard Pile ---
+            // Use a Row to show them side-by-side
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -128,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     const SizedBox(height: 8),
                     DeckWidget(
                       cardCount: gameState.deck.cards.length,
-                      onTap: _drawFromDeck, // Call our new method!
+                      onTap: _selectedCards.isEmpty ? _drawFromDeck : null, // Call our new method!
                     ),
                   ],
                 ),
@@ -140,7 +159,33 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 8),
-                    CardWidget(card: gameState.discardPile.last),
+                    if(gameState.discardPile.isNotEmpty)
+                      CardWidget(
+                        card: gameState.discardPile.last,
+                        onTap: _selectedCards.length >= 2 ?
+                          _drawFromDiscard : null,
+                        isSelected: _selectedCards.length >= 2,
+                      )
+                      else
+                      Container(
+                        width: 60,
+                        height: 90,
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.black26,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Empty',
+                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -148,7 +193,7 @@ class _MyHomePageState extends State<MyHomePage> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 24),
-            // === Player's Melds ===
+            // --- Player's Melds ---
             Text(
               "Player 1's Melds:",
               style: Theme.of(context).textTheme.bodyLarge,
@@ -204,7 +249,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             const SizedBox(height: 8),
 
-            // === PlayerHandWidget ===
+            // --- PlayerHandWidget ---
             PlayerHandWidget(
               hand: currentPlayerHand,
               selectedCards: _selectedCards, // Pass the list
