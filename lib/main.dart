@@ -4,6 +4,7 @@ import 'widgets/card_widget.dart';
 import 'widgets/deck_widget.dart';
 import 'widgets/player_hand_widget.dart';
 import 'widgets/player_melds_widget.dart';
+import 'widgets/game_over_widget.dart';
 
 void main() {
   runApp(const MyApp());
@@ -118,151 +119,167 @@ class _MyHomePageState extends State<MyHomePage> {
         ? gameState.players[gameState.currentPlayerIndex].hand
         : <game.Card>[];
 
+    final bool isGameOver =
+      gameState?.status != null && gameState?.status != game.GameStatus.playing;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: <Widget>[
-          if (gameState == null)
-            const Center(
-              child: Text('Press the button to start a new game!'),
-            ),
-
-          if (gameState != null && player1 != null && player2 != null) ...[
-            // --- Deck and Discard Pile ---
-            // Use a Row to show them side-by-side
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // --- The Deck ---
-                Column(
-                  children: [
-                    Text(
-                      'Deck:',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    DeckWidget(
-                      cardCount: gameState.deck.cards.length,
-                      onTap: _selectedCards.isEmpty ? _drawFromDeck : null, // Call our new method!
-                    ),
-                  ],
-                ),
-                // --- The Discard Pile ---
-                Column(
-                  children: [
-                    Text(
-                      'Discard Pile:',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    if(gameState.discardPile.isNotEmpty)
-                      CardWidget(
-                        card: gameState.discardPile.last,
-                        onTap: _selectedCards.length >= 2 ?
-                          _drawFromDiscard : null,
-                        isSelected: _selectedCards.length >= 2,
-                      )
-                      else
-                      Container(
-                        width: 60,
-                        height: 90,
-                        margin: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.black26,
-                            width: 1,
+      body: Stack(
+        children: [
+          IgnorePointer(
+            ignoring: isGameOver,
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: <Widget>[
+                if (gameState == null)
+                  const Center(
+                    child: Text('Press the button to start a new game!'),
+                  ),
+                if (gameState != null && player1 != null && player2 != null) ...[
+                  // --- Deck and Discard Pile ---
+                  // Use a Row to show them side-by-side
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // --- The Deck ---
+                      Column(
+                        children: [
+                          Text(
+                            'Deck:',
+                            style: Theme.of(context).textTheme.headlineSmall,
                           ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Empty',
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          const SizedBox(height: 8),
+                          DeckWidget(
+                            cardCount: gameState.deck.cards.length,
+                            onTap: _selectedCards.isEmpty ? _drawFromDeck : null, // Call our new method!
                           ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
+                      // --- The Discard Pile ---
+                      Column(
+                        children: [
+                          Text(
+                            'Discard Pile:',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          if(gameState.discardPile.isNotEmpty)
+                            CardWidget(
+                              card: gameState.discardPile.last,
+                              onTap: _selectedCards.length >= 2 ?
+                                _drawFromDiscard : null,
+                              isSelected: _selectedCards.length >= 2,
+                            )
+                            else
+                            Container(
+                              width: 60,
+                              height: 90,
+                              margin: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.black26,
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Empty',
+                                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  // --- Player's Melds ---
+                  Text(
+                    "Player 1's Melds:",
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  PlayerMeldsWidget(melds: player1.melds),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Player 2's Melds:",
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  PlayerMeldsWidget(melds: player2.melds),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // === Player's Hand ===
+                  Text(
+                    'Your Hand (Player ${gameState.currentPlayerIndex + 1}):',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),const SizedBox(height: 8),
+
+                  // Show Meld/Discard buttons in a Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // MELD BUTTON
+                      if (_selectedCards.length >= 3)
+                        ElevatedButton.icon(
+                          onPressed: _meldSelectedCards,
+                          icon: const Icon(Icons.style),
+                          label: const Text('Meld'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[400],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      
+                      // DISCARD BUTTON
+                      if (_selectedCards.length == 1)
+                        ElevatedButton.icon(
+                          onPressed: _discardSelectedCard,
+                          icon: const Icon(Icons.vertical_align_bottom),
+                          label: Text('Discard ${_selectedCards.first}'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[400],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // --- PlayerHandWidget ---
+                  PlayerHandWidget(
+                    hand: currentPlayerHand,
+                    selectedCards: _selectedCards, // Pass the list
+                    onCardTapped: _onCardTapped,
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 24),
-            // --- Player's Melds ---
-            Text(
-              "Player 1's Melds:",
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
+          ),
+          if (isGameOver && gameState != null)
+            GameOverWidget(
+              status: gameState.status,
+              onNewGame: _startNewGame, // Pass the restart function!
             ),
-            PlayerMeldsWidget(melds: player1.melds),
-            const SizedBox(height: 16),
-            Text(
-              "Player 2's Melds:",
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            PlayerMeldsWidget(melds: player2.melds),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            // === Player's Hand ===
-            Text(
-              'Your Hand (Player ${gameState.currentPlayerIndex + 1}):',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),const SizedBox(height: 8),
-
-            // Show Meld/Discard buttons in a Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // MELD BUTTON
-                if (_selectedCards.length >= 3)
-                  ElevatedButton.icon(
-                    onPressed: _meldSelectedCards,
-                    icon: const Icon(Icons.style),
-                    label: const Text('Meld'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[400],
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                
-                // DISCARD BUTTON
-                if (_selectedCards.length == 1)
-                  ElevatedButton.icon(
-                    onPressed: _discardSelectedCard,
-                    icon: const Icon(Icons.vertical_align_bottom),
-                    label: Text('Discard ${_selectedCards.first}'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[400],
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // --- PlayerHandWidget ---
-            PlayerHandWidget(
-              hand: currentPlayerHand,
-              selectedCards: _selectedCards, // Pass the list
-              onCardTapped: _onCardTapped,
-            ),
-          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _startNewGame,
-        tooltip: 'New Game',
-        child: const Icon(Icons.play_arrow),
-      ),
+      floatingActionButton: isGameOver
+        ? null
+        : FloatingActionButton(
+          onPressed: _startNewGame,
+          tooltip: 'New Game',
+          child: const Icon(Icons.play_arrow),
+        ),
     );
   }
 }

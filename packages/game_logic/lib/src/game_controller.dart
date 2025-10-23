@@ -53,10 +53,18 @@ class GameController {
     final currentState = _gameState!;
     final deck = currentState.deck;
 
-    //Make sure the deck isn't empty
     if (deck.cards.isEmpty) {
-      print("Deck is empty!");
-      return;
+      print("Deck is empty! Checking for draw...");
+      // For now, a simple check: if the deck is empty, it's a draw.
+      _gameState = GameState(
+        players: currentState.players,
+        deck: currentState.deck,
+        discardPile: currentState.discardPile,
+        currentPlayerIndex: currentState.currentPlayerIndex,
+        status: GameStatus.draw, // Set draw status
+      );
+      print("GAME IS A DRAW.");
+      return; // Stop the function
     }
 
     //Get the current player
@@ -113,6 +121,7 @@ class GameController {
       status: currentState.status,
     );
   }
+  
   bool meldCards(List<Card> cardsToMeld) {
     if (_gameState == null) return false;
 
@@ -142,6 +151,9 @@ class GameController {
     
     print("Player ${player.id} melded: $newMeld");
 
+    if(_checkForWin()) {
+      return true; //Game Over
+    }
     //Create new game state
     _gameState = GameState(
       players: currentState.players,
@@ -199,6 +211,10 @@ class GameController {
 
     print("Player ${player.id} melded from discard: $newMeld");
 
+    if(_checkForWin()) {
+      return true; //Game Over
+    }
+
     _gameState = GameState(
       players: currentState.players,
       deck: currentState.deck,
@@ -209,4 +225,38 @@ class GameController {
 
     return true;
   }
+
+    bool _checkForWin() {
+    if (_gameState == null) return false;
+
+      final currentState = _gameState!;
+      final player = currentState.players[currentState.currentPlayerIndex];
+
+      //Calculate total melded cards
+      int totalMeldedCards = 0;
+      for (var meld in player.melds) {
+        totalMeldedCards += meld.cards.length;
+      }
+
+      //Check for win condition (11 cards)
+      if (totalMeldedCards == 11) {
+        print("PLAYER ${player.id} WINS!");
+
+        //Create new game state with the win status
+        _gameState = GameState(
+          players: currentState.players,
+          deck: currentState.deck,
+          discardPile: currentState.discardPile,
+          currentPlayerIndex: currentState.currentPlayerIndex,
+          // Set the correct win status!
+          status: currentState.currentPlayerIndex == 0
+              ? GameStatus.player1Wins
+              : GameStatus.player2Wins,
+        );
+        return true; // The game is over
+      }
+
+      return false; // The game continues
+    }
+  
 }

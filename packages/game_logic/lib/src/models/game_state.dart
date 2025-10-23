@@ -2,7 +2,7 @@ import 'card.dart';
 import 'deck.dart';
 import 'player.dart';
 
-enum GameStatus { playing, gameOver }
+enum GameStatus { playing, player1Wins, player2Wins, draw}
 
 class GameState {
   final List<Player> players;
