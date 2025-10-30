@@ -36,6 +36,7 @@ class GameController {
       deck: deck,
       discardPile: discardPile,
       currentPlayerIndex: 0, // Player 1 starts
+      drawnCard: null,
     );
 
     print("--- NEW GAME STARTED ---");
@@ -46,43 +47,42 @@ class GameController {
   }
 
   void drawFromDeck() {
-    //Make sure the game has started
     if (_gameState == null) return;
-
-    //Get the current state
+    
     final currentState = _gameState!;
-    final deck = currentState.deck;
+    // If a card is already drawn, they can't draw again.
+    if (currentState.drawnCard != null) {
+      print("Player must act on the drawn card first.");
+      return;
+    }
 
+    // Check if game is a draw
+    final deck = currentState.deck;
     if (deck.cards.isEmpty) {
       print("Deck is empty! Checking for draw...");
-      // For now, a simple check: if the deck is empty, it's a draw.
       _gameState = GameState(
         players: currentState.players,
         deck: currentState.deck,
         discardPile: currentState.discardPile,
         currentPlayerIndex: currentState.currentPlayerIndex,
-        status: GameStatus.draw, // Set draw status
+        status: GameStatus.draw,
+        drawnCard: null,
       );
       print("GAME IS A DRAW.");
-      return; // Stop the function
+      return;
     }
-
-    //Get the current player
-    final player = currentState.players[currentState.currentPlayerIndex];
-
-    //Take a card from the deck and add it to the player's hand
+    
+    // Draw and hold the card
     final drawnCard = deck.cards.removeLast();
-    player.hand.add(drawnCard);
+    print("Player ${currentState.players[currentState.currentPlayerIndex].id} drew: $drawnCard");
 
-    print("Player ${player.id} drew: $drawnCard");
-
-    //Create a NEW GameState with the updated info (no prefix)
     _gameState = GameState(
-      players: currentState.players, // This list now contains the modified player
-      deck: deck, // This is the modified deck
+      players: currentState.players,
+      deck: deck, 
       discardPile: currentState.discardPile,
       currentPlayerIndex: currentState.currentPlayerIndex,
       status: currentState.status,
+      drawnCard: drawnCard,
     );
   }
 
@@ -119,6 +119,7 @@ class GameController {
       discardPile: discardPile,
       currentPlayerIndex: nextPlayerIndex, //Update the current player
       status: currentState.status,
+      drawnCard: currentState.drawnCard,
     );
   }
   
@@ -161,6 +162,7 @@ class GameController {
       discardPile: currentState.discardPile,
       currentPlayerIndex: currentState.currentPlayerIndex,
       status: currentState.status,
+      drawnCard: currentState.drawnCard,
     );
     
     return true;
@@ -221,6 +223,7 @@ class GameController {
       discardPile: discardPile,
       currentPlayerIndex: currentState.currentPlayerIndex,
       status: currentState.status,
+      drawnCard: null,
     );
 
     return true;
@@ -252,11 +255,86 @@ class GameController {
           status: currentState.currentPlayerIndex == 0
               ? GameStatus.player1Wins
               : GameStatus.player2Wins,
+          drawnCard: currentState.drawnCard,
         );
         return true; // The game is over
       }
 
       return false; // The game continues
     }
-  
+
+
+    void discardDrawnCard() {
+      if (_gameState == null || _gameState!.drawnCard == null) return;
+      
+      final currentState = _gameState!;
+      final player = currentState.players[currentState.currentPlayerIndex];
+      final drawnCard = currentState.drawnCard!;
+
+      // Add card to discard pile
+      final newDiscardPile = currentState.discardPile..add(drawnCard);
+
+      // End turn
+      final nextPlayerIndex = (currentState.currentPlayerIndex + 1) % currentState.players.length;
+
+      print("Player ${player.id} discarded the drawn card: $drawnCard");
+      print("--- It is now Player ${currentState.players[nextPlayerIndex].id}'s turn ---");
+
+      // Update state, clearing the drawn card and changing player
+      _gameState = GameState(
+        players: currentState.players,
+        deck: currentState.deck,
+        discardPile: newDiscardPile,
+        currentPlayerIndex: nextPlayerIndex,
+        status: currentState.status,
+        drawnCard: null,
+      );
+    }
+
+    /// This action DOES NOT end the player's turn.
+    bool meldWithDrawnCard(List<Card> selectedHandCards) {
+      if (_gameState == null || _gameState!.drawnCard == null) return false;
+      // Must use 2 or more cards from hand
+      if (selectedHandCards.length < 2) return false;
+
+      final currentState = _gameState!;
+      final player = currentState.players[currentState.currentPlayerIndex];
+      final drawnCard = currentState.drawnCard!;
+      
+      // Create the potential meld
+      final potentialMeld = List<Card>.from(selectedHandCards)..add(drawnCard);
+
+      if (!MeldValidator.isValidMeld(potentialMeld)) {
+        print("Invalid meld with drawn card.");
+        return false;
+      }
+
+      // Create the meld.
+      final type = potentialMeld.every((c) => c.rank == potentialMeld[0].rank) 
+          ? MeldType.set 
+          : MeldType.sequence;
+      final newMeld = Meld(cards: potentialMeld, type: type);
+      
+      // Remove cards from hand
+      for (var card in selectedHandCards) {
+        player.hand.remove(card);
+      }
+      
+      // Add new meld to table
+      player.melds.add(newMeld);
+      print("Player ${player.id} melded with drawn card: $newMeld");
+
+      // Check for a win
+      if (_checkForWin()) return true; // Game over
+
+      _gameState = GameState(
+        players: currentState.players,
+        deck: currentState.deck,
+        discardPile: currentState.discardPile,
+        currentPlayerIndex: currentState.currentPlayerIndex,
+        status: currentState.status,
+        drawnCard: null, 
+      );
+      return true;
+    } 
 }
